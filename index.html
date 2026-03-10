@@ -759,29 +759,91 @@ tr:hover td{background:var(--gray50);}
   </div>
 </div>
 
-<script>
+<script type="module">
 // ═══════════════════════════════════════════════════════════════════════════
-//  DATA LAYER  (localStorage)
+//  FIREBASE CONFIG
 // ═══════════════════════════════════════════════════════════════════════════
-function loadDB(){ try{return JSON.parse(localStorage.getItem('mici_db')||'[]');}catch{return[];} }
-function saveDB(d){ localStorage.setItem('mici_db',JSON.stringify(d)); }
-function loadCfg(){ try{return JSON.parse(localStorage.getItem('mici_cfg')||'{}');}catch{return{};} }
-function saveCfg(c){ localStorage.setItem('mici_cfg',JSON.stringify(c)); }
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, getDoc }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-function getCfg(){
-  const c=loadCfg();
-  return {prefijo:c.prefijo||'MICI', seq:c.seq||1, digits:parseInt(c.digits||'4')};
+const firebaseConfig = {
+  apiKey: "AIzaSyCT-OP98La4QYVkC5MQ0k1MJRHFsPRRCT0",
+  authDomain: "mici-placas.firebaseapp.com",
+  projectId: "mici-placas",
+  storageBucket: "mici-placas.firebasestorage.app",
+  messagingSenderId: "692552371007",
+  appId: "1:692552371007:web:75d668a7854b7bf23e218a",
+  measurementId: "G-LHS28M291Q"
+};
+
+const app = initializeApp(firebaseConfig);
+const db_fire = getFirestore(app);
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DATA LAYER  (Firestore)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// In-memory cache so UI stays fast
+let _dbCache = null;
+let _cfgCache = null;
+
+async function loadDB() {
+  if (_dbCache !== null) return _dbCache;
+  try {
+    const snap = await getDocs(collection(db_fire, 'bienes'));
+    _dbCache = snap.docs.map(d => d.data());
+    return _dbCache;
+  } catch(e) { console.error(e); return []; }
 }
 
-function nextNumPlaca(){
-  const c=getCfg();
-  return c.prefijo+'-'+String(c.seq).padStart(c.digits,'0');
+async function saveDB(arr) {
+  _dbCache = arr;
+  // Save all records - use Promise.all for speed
+  const col = collection(db_fire, 'bienes');
+  // Get existing IDs to detect deletions
+  const snap = await getDocs(col);
+  const existingIds = snap.docs.map(d => d.id);
+  const newIds = arr.map(r => String(r.id));
+  // Delete removed records
+  const toDelete = existingIds.filter(id => !newIds.includes(id));
+  await Promise.all(toDelete.map(id => deleteDoc(doc(db_fire, 'bienes', id))));
+  // Upsert all current records
+  await Promise.all(arr.map(r => setDoc(doc(db_fire, 'bienes', String(r.id)), r)));
 }
-function bumpSeq(){
-  const raw=loadCfg(), c=getCfg();
-  raw.seq=(c.seq||1)+1;
-  saveCfg(raw);
+
+async function loadCfg() {
+  if (_cfgCache !== null) return _cfgCache;
+  try {
+    const snap = await getDoc(doc(db_fire, 'config', 'main'));
+    _cfgCache = snap.exists() ? snap.data() : {};
+    return _cfgCache;
+  } catch(e) { return {}; }
 }
+
+async function saveCfg(c) {
+  _cfgCache = c;
+  await setDoc(doc(db_fire, 'config', 'main'), c);
+}
+
+async function getCfg() {
+  const c = await loadCfg();
+  return {prefijo: c.prefijo||'MICI', seq: c.seq||1, digits: parseInt(c.digits||'4')};
+}
+
+async function nextNumPlaca() {
+  const c = await getCfg();
+  return c.prefijo + '-' + String(c.seq).padStart(c.digits, '0');
+}
+
+async function bumpSeq() {
+  const raw = await loadCfg();
+  const c = await getCfg();
+  raw.seq = (c.seq||1) + 1;
+  await saveCfg(raw);
+}
+
+// getCfg, nextNumPlaca, bumpSeq defined above as async functions
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  NAVIGATION
@@ -796,7 +858,7 @@ const VIEW_META={
   config:{title:'Configuración',sub:'Parámetros del sistema de numeración',actions:''},
 };
 
-function navigate(el){
+async function navigate(el){
   const v=el.dataset.view;
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   el.classList.add('active');
@@ -806,19 +868,19 @@ function navigate(el){
   document.getElementById('topbar-title').textContent=m.title||v;
   document.getElementById('topbar-sub').textContent=m.sub||'';
   document.getElementById('topbar-actions').innerHTML=m.actions||'';
-  if(v==='dashboard')refreshDashboard();
-  if(v==='bienes'){renderBienes();populateFilters();}
-  if(v==='placas')renderPlacasSelect();
-  if(v==='imprimir')buildPrintSheet();
-  if(v==='exportar'){populateExpFilters();renderExpPreview();}
-  if(v==='config'){const c=getCfg();document.getElementById('cfg-prefijo').value=c.prefijo;document.getElementById('cfg-seq').value=c.seq;document.getElementById('cfg-digits').value=c.digits;}
+  if(v==='dashboard') await refreshDashboard();
+  if(v==='bienes'){await renderBienes(); await populateFilters();}
+  if(v==='placas') await renderPlacasSelect();
+  if(v==='imprimir') await buildPrintSheet();
+  if(v==='exportar'){await populateExpFilters(); await renderExpPreview();}
+  if(v==='config'){const c=await getCfg();document.getElementById('cfg-prefijo').value=c.prefijo;document.getElementById('cfg-seq').value=c.seq;document.getElementById('cfg-digits').value=c.digits;}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════
-function refreshDashboard(){
-  const db=loadDB();
+async function refreshDashboard(){
+  const db=await loadDB();
   const activos=db.filter(r=>r.estado==='Activo').length;
   const traslado=db.filter(r=>r.estado==='Traslado').length;
   const descarte=db.filter(r=>r.estado==='Descarte').length;
@@ -868,12 +930,12 @@ function bar(label,val,total,color){
 // ═══════════════════════════════════════════════════════════════════════════
 let editingId=null;
 
-function openNuevoBien(){
+async function openNuevoBien(){
   editingId=null;
   document.getElementById('modal-bien-title').textContent='Nuevo Bien Patrimonial';
   clearForm();
   document.getElementById('b-fecha').value=new Date().toISOString().split('T')[0];
-  document.getElementById('b-placa').value=nextNumPlaca();
+  document.getElementById('b-placa').value=await nextNumPlaca();
   openModal('modal-bien');
 }
 
@@ -885,9 +947,9 @@ function clearForm(){
   document.getElementById('b-fecha').value='';
 }
 
-function autoPlaca(){ document.getElementById('b-placa').value=nextNumPlaca(); }
+async function autoPlaca(){ document.getElementById('b-placa').value=await nextNumPlaca(); }
 
-function saveBien(){
+async function saveBien(){
   const placa=document.getElementById('b-placa').value.trim();
   const desc=document.getElementById('b-desc').value.trim();
   const responsable=document.getElementById('b-responsable').value.trim();
@@ -895,7 +957,7 @@ function saveBien(){
   if(!desc){alert('La descripción es requerida.');return;}
   if(!responsable){alert('El responsable es requerido.');return;}
 
-  const db=loadDB();
+  const db=await loadDB();
   if(!editingId){
     // Check duplicate
     if(db.find(r=>r.placa===placa)){alert('Ya existe un bien con ese número de placa.');return;}
@@ -920,19 +982,20 @@ function saveBien(){
     if(idx>=0) db[idx]=rec;
   } else {
     db.push(rec);
-    bumpSeq();
+    await bumpSeq();
   }
-  saveDB(db);
+  toast('Guardando…');
+  await saveDB(db);
   closeModal('modal-bien');
-  renderBienes();
-  refreshDashboard();
-  populateFilters();
+  await renderBienes();
+  await refreshDashboard();
+  await populateFilters();
   toast('Bien guardado correctamente ✓');
 }
 
-function editBien(id){
+async function editBien(id){
   editingId=id;
-  const db=loadDB();
+  const db=await loadDB();
   const r=db.find(x=>x.id===id);
   if(!r)return;
   document.getElementById('modal-bien-title').textContent='Editar Bien Patrimonial';
@@ -950,17 +1013,18 @@ function editBien(id){
   openModal('modal-bien');
 }
 
-function deleteBien(id){
+async function deleteBien(id){
   if(!confirm('¿Eliminar este registro permanentemente?'))return;
-  const db=loadDB().filter(r=>r.id!==id);
-  saveDB(db);
-  renderBienes();
-  refreshDashboard();
+  toast('Eliminando…');
+  const db=(await loadDB()).filter(r=>r.id!==id);
+  await saveDB(db);
+  await renderBienes();
+  await refreshDashboard();
   toast('Registro eliminado');
 }
 
-function verPlaca(id){
-  const db=loadDB();
+async function verPlaca(id){
+  const db=await loadDB();
   const r=db.find(x=>x.id===id);
   if(!r)return;
   const body=document.getElementById('modal-placa-body');
@@ -1002,9 +1066,9 @@ function verPlaca(id){
 
 function row2(k,v){return`<tr><td style="padding:7px 0;color:var(--gray500);font-weight:500;vertical-align:top;width:130px;border-bottom:1px solid var(--gray100);">${k}</td><td style="padding:7px 0 7px 10px;border-bottom:1px solid var(--gray100);">${v}</td></tr>`;}
 
-function imprimirPlacaModal(){
+async function imprimirPlacaModal(){
   const id=window._modalPlacaId;
-  const db=loadDB();
+  const db=await loadDB();
   const r=db.find(x=>x.id===id);
   if(!r)return;
   const w=window.open('','_blank');
@@ -1016,12 +1080,12 @@ function imprimirPlacaModal(){
 // ═══════════════════════════════════════════════════════════════════════════
 //  RENDER TABLE
 // ═══════════════════════════════════════════════════════════════════════════
-function renderBienes(){
+async function renderBienes(){
   const q=(document.getElementById('search-q').value||'').toLowerCase();
   const fe=document.getElementById('filter-estado').value;
   const fr=document.getElementById('filter-regional').value;
   const ft=document.getElementById('filter-tipo').value;
-  let db=loadDB();
+  let db=await loadDB();
   if(q) db=db.filter(r=>[r.placa,r.descripcion,r.responsable,r.regional,r.tipo].join(' ').toLowerCase().includes(q));
   if(fe) db=db.filter(r=>r.estado===fe);
   if(fr) db=db.filter(r=>r.regional===fr);
@@ -1053,8 +1117,8 @@ function renderBienes(){
     </tr>`).join('');
 }
 
-function populateFilters(){
-  const db=loadDB();
+async function populateFilters(){
+  const db=await loadDB();
   const regionales=[...new Set(db.map(r=>r.regional).filter(Boolean))].sort();
   const tipos=[...new Set(db.map(r=>r.tipo).filter(Boolean))].sort();
   ['filter-regional','exp-regional'].forEach(id=>{
@@ -1070,8 +1134,8 @@ function populateFilters(){
 // ═══════════════════════════════════════════════════════════════════════════
 //  PLACAS PREVIEW
 // ═══════════════════════════════════════════════════════════════════════════
-function renderPlacasSelect(){
-  const db=loadDB();
+async function renderPlacasSelect(){
+  const db=await loadDB();
   const tbody=document.getElementById('placas-select-tbody');
   if(!db.length){tbody.innerHTML='<tr><td colspan="5" class="empty"><div class="empty-ico">📋</div>Sin bienes</td></tr>';return;}
   tbody.innerHTML=db.map(r=>`
@@ -1092,10 +1156,10 @@ function selectAllPlacas(){
   document.getElementById('chk-all').checked=true;
 }
 
-function showPlacasPreview(){
+async function showPlacasPreview(){
   const ids=Array.from(document.querySelectorAll('.placa-chk:checked')).map(c=>parseInt(c.dataset.id));
   if(!ids.length){alert('Selecciona al menos un bien.');return;}
-  const db=loadDB();
+  const db=await loadDB();
   const selected=db.filter(r=>ids.includes(r.id));
   const grid=document.getElementById('preview-grid');
   const withQR=document.getElementById('chk-qr').checked;
@@ -1149,8 +1213,8 @@ function makeQR(container, text, size){
 // ═══════════════════════════════════════════════════════════════════════════
 //  PRINT SHEET
 // ═══════════════════════════════════════════════════════════════════════════
-function buildPrintSheet(){
-  const db=loadDB();
+async function buildPrintSheet(){
+  const db=await loadDB();
   if(!db.length){
     document.getElementById('print-sheet').innerHTML='<div class="empty" style="width:100%;"><div class="empty-ico">🖨️</div>Sin bienes para imprimir</div>';
     return;
@@ -1199,8 +1263,8 @@ function printOneHTML(r){
 // ═══════════════════════════════════════════════════════════════════════════
 //  EXPORT EXCEL
 // ═══════════════════════════════════════════════════════════════════════════
-function getFilteredForExport(){
-  let db=loadDB();
+async function getFilteredForExport(){
+  let db=await loadDB();
   const est=document.getElementById('exp-estado').value;
   const reg=document.getElementById('exp-regional').value;
   const desde=document.getElementById('exp-desde').value;
@@ -1212,10 +1276,10 @@ function getFilteredForExport(){
   return db;
 }
 
-function populateExpFilters(){ populateFilters(); }
+async function populateExpFilters(){ await populateFilters(); }
 
-function renderExpPreview(){
-  const db=getFilteredForExport().slice(0,8);
+async function renderExpPreview(){
+  const db=(await getFilteredForExport()).slice(0,8);
   const el=document.getElementById('exp-preview');
   if(!db.length){el.innerHTML='<div class="empty">Sin datos para exportar</div>';return;}
   el.innerHTML=`<table style="width:100%;font-size:11px;border-collapse:collapse;">
@@ -1226,8 +1290,8 @@ function renderExpPreview(){
   </table>`;
 }
 
-function exportExcel(){
-  const db=getFilteredForExport();
+async function exportExcel(){
+  const db=await getFilteredForExport();
   if(!db.length){alert('No hay datos para exportar con los filtros seleccionados.');return;}
   const rows=db.map(r=>({
     'N.º Placa':r.placa,
@@ -1246,7 +1310,6 @@ function exportExcel(){
   const ws=XLSX.utils.json_to_sheet(rows);
   ws['!cols']=[{wch:14},{wch:40},{wch:22},{wch:24},{wch:24},{wch:28},{wch:14},{wch:16},{wch:12},{wch:20},{wch:30}];
   XLSX.utils.book_append_sheet(wb,ws,'Inventario Patrimonial');
-  // Summary sheet
   const summary=[
     ['MINISTERIO DE COMERCIO E INDUSTRIAS – INVENTARIO PATRIMONIAL'],
     ['Fecha de exportación:',new Date().toLocaleDateString('es-PA')],
@@ -1262,30 +1325,27 @@ function exportExcel(){
   toast(`Excel exportado con ${db.length} registro(s) ✓`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  CONFIG
-// ═══════════════════════════════════════════════════════════════════════════
-function saveConfig(){
-  const raw=loadCfg();
+async function saveConfig(){
+  const raw=await loadCfg();
   raw.prefijo=document.getElementById('cfg-prefijo').value.trim()||'MICI';
   raw.seq=parseInt(document.getElementById('cfg-seq').value)||1;
   raw.digits=document.getElementById('cfg-digits').value;
-  saveCfg(raw);
+  await saveCfg(raw);
   toast('Configuración guardada ✓');
 }
 
-function generarSerie(){
+async function generarSerie(){
   const cant=parseInt(document.getElementById('gen-cant').value)||0;
   if(!cant||cant<1){alert('Ingresa una cantidad válida.');return;}
   if(!confirm(`¿Generar ${cant} placas consecutivas? Esto creará ${cant} registros nuevos.`))return;
-  const db=loadDB();
+  const db=await loadDB();
   const estado=document.getElementById('gen-estado').value;
   const regional=document.getElementById('gen-regional').value.trim();
   const hoy=new Date().toISOString().split('T')[0];
   for(let i=0;i<cant;i++){
     db.push({
       id:Date.now()+i,
-      placa:nextNumPlaca(),
+      placa:await nextNumPlaca(),
       desc:'(pendiente asignación)',
       descripcion:'(pendiente asignación)',
       tipo:'Otro',
@@ -1293,11 +1353,12 @@ function generarSerie(){
       depto:'',responsable:'',cedula:'',
       fecha:hoy,estado,valor:0,obs:'Serie generada automáticamente'
     });
-    bumpSeq();
+    await bumpSeq();
   }
-  saveDB(db);
+  toast('Guardando serie…');
+  await saveDB(db);
   toast(`${cant} placas generadas correctamente ✓`);
-  refreshDashboard();
+  await refreshDashboard();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1348,7 +1409,7 @@ const USERS = [
   {user:'patrimonial', pass:'placas123', nombre:'Patrimonio MICI'},
 ];
 
-function doLogin(){
+async function doLogin(){
   const u=document.getElementById('login-user').value.trim().toLowerCase();
   const p=document.getElementById('login-pass').value;
   const found=USERS.find(x=>x.user===u && x.pass===p);
@@ -1358,15 +1419,39 @@ function doLogin(){
     const inp=document.getElementById('login-pass');
     inp.value='';
     inp.classList.remove('shake');
-    void inp.offsetWidth; // reflow para reiniciar animación
+    void inp.offsetWidth;
     inp.classList.add('shake');
     inp.focus();
     return;
   }
-  // Guardar sesión
   sessionStorage.setItem('mici_auth', JSON.stringify({user:found.user, nombre:found.nombre, ts:Date.now()}));
-  showApp(found.nombre);
+  await showApp(found.nombre);
 }
+
+// Expose all functions to global scope (required for ES modules used with inline onclick handlers)
+window.doLogin=doLogin;
+window.doLogout=doLogout;
+window.navigate=navigate;
+window.openNuevoBien=openNuevoBien;
+window.saveBien=saveBien;
+window.editBien=editBien;
+window.deleteBien=deleteBien;
+window.verPlaca=verPlaca;
+window.imprimirPlacaModal=imprimirPlacaModal;
+window.autoPlaca=autoPlaca;
+window.clearForm=clearForm;
+window.openModal=openModal;
+window.closeModal=closeModal;
+window.renderBienes=renderBienes;
+window.renderPlacasSelect=renderPlacasSelect;
+window.toggleAllChk=toggleAllChk;
+window.selectAllPlacas=selectAllPlacas;
+window.showPlacasPreview=showPlacasPreview;
+window.buildPrintSheet=buildPrintSheet;
+window.exportExcel=exportExcel;
+window.renderExpPreview=renderExpPreview;
+window.saveConfig=saveConfig;
+window.generarSerie=generarSerie;
 
 function doLogout(){
   if(!confirm('¿Cerrar sesión?'))return;
@@ -1379,21 +1464,22 @@ function doLogout(){
   document.getElementById('login-user').focus();
 }
 
-function showApp(nombre){
+async function showApp(nombre){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-app').style.display='flex';
   document.getElementById('sb-user').textContent='👤 ' + nombre;
-  refreshDashboard();
-  document.getElementById('print-to').value=loadDB().length||1;
+  await refreshDashboard();
+  const db=await loadDB();
+  document.getElementById('print-to').value=db.length||1;
 }
 
 // ── INIT: verificar sesión existente ──
-(function(){
+(async function(){
   const sess=sessionStorage.getItem('mici_auth');
   if(sess){
     try{
       const d=JSON.parse(sess);
-      showApp(d.nombre);
+      await showApp(d.nombre);
     }catch{ /* sesión inválida, mostrar login */ }
   } else {
     document.getElementById('login-user').focus();
