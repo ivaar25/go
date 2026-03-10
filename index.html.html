@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MICI – Sistema de Placas Patrimoniales</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* ── RESET & BASE ───────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --navy:#0B2545;--navy2:#163366;--navy3:#1E4080;
+  --blue:#2563EB;--blue2:#3B82F6;--blue-lt:#EFF6FF;
+  --gold:#C9890A;--gold-lt:#FEF3C7;
+  --red:#DC2626;--red-lt:#FEE2E2;
+  --green:#16A34A;--green-lt:#DCFCE7;
+  --gray50:#F8FAFC;--gray100:#F1F5F9;--gray200:#E2E8F0;
+  --gray300:#CBD5E1;--gray400:#94A3B8;--gray500:#64748B;
+  --gray700:#334155;--gray900:#0F172A;
+  --white:#FFFFFF;--shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
+  --r:8px;--r2:12px;
+}
+html,body{height:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--gray900);background:var(--gray100);}
+
+/* ── LAYOUT ─────────────────────────────────────────────────── */
+.app{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:240px;min-width:240px;background:var(--navy);display:flex;flex-direction:column;overflow:hidden;}
+.sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.08);}
+.logo-badge{background:var(--gold);color:var(--navy);font-weight:700;font-size:11px;
+  letter-spacing:.08em;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;}
+.logo-title{color:var(--white);font-size:13px;font-weight:600;line-height:1.4;}
+.logo-sub{color:rgba(255,255,255,.4);font-size:11px;margin-top:2px;}
+.nav{padding:12px 10px;flex:1;overflow-y:auto;}
+.nav-label{color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;padding:8px 8px 4px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;
+  color:rgba(255,255,255,.6);cursor:pointer;transition:all .18s;margin-bottom:2px;font-size:13px;}
+.nav-item:hover{background:rgba(255,255,255,.07);color:var(--white);}
+.nav-item.active{background:rgba(255,255,255,.12);color:var(--white);font-weight:500;}
+.nav-item .ico{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--blue2);color:#fff;font-size:10px;font-weight:600;
+  padding:1px 6px;border-radius:10px;}
+.sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);
+  color:rgba(255,255,255,.35);font-size:11px;}
+
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.topbar{background:var(--white);border-bottom:1px solid var(--gray200);padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.topbar-title{font-size:17px;font-weight:600;color:var(--navy);}
+.topbar-sub{font-size:12px;color:var(--gray400);margin-top:1px;}
+.topbar-actions{display:flex;gap:8px;}
+.content{padding:24px 28px;flex:1;}
+
+/* ── BUTTONS ────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;
+  border:1px solid transparent;transition:all .18s;white-space:nowrap;}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);}
+.btn-primary:hover{background:#1d4ed8;}
+.btn-navy{background:var(--navy);color:#fff;}
+.btn-navy:hover{background:var(--navy2);}
+.btn-ghost{background:transparent;color:var(--gray700);border-color:var(--gray200);}
+.btn-ghost:hover{background:var(--gray100);border-color:var(--gray300);}
+.btn-gold{background:var(--gold);color:#fff;}
+.btn-gold:hover{background:#b07809;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#15803d;}
+.btn-red{background:transparent;color:var(--red);border-color:var(--red-lt);}
+.btn-red:hover{background:var(--red-lt);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-xs{padding:3px 8px;font-size:11px;}
+.btn-icon{padding:7px;border-radius:6px;}
+
+/* ── CARDS & PANELS ─────────────────────────────────────────── */
+.card{background:var(--white);border:1px solid var(--gray200);border-radius:var(--r2);
+  box-shadow:var(--shadow);}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--gray100);display:flex;
+  align-items:center;justify-content:space-between;gap:12px;}
+.card-title{font-size:14px;font-weight:600;color:var(--navy);}
+.card-body{padding:20px;}
+
+/* ── STATS ──────────────────────────────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--white);border:1px solid var(--gray200);border-radius:var(--r2);
+  padding:16px 20px;box-shadow:var(--shadow);}
+.stat-label{font-size:11px;font-weight:600;color:var(--gray400);text-transform:uppercase;
+  letter-spacing:.06em;}
+.stat-val{font-size:28px;font-weight:700;color:var(--navy);margin:4px 0 2px;}
+.stat-sub{font-size:11px;color:var(--gray400);}
+.stat-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;}
+
+/* ── FORM ───────────────────────────────────────────────────── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg.full{grid-column:1/-1;}
+label.lbl{font-size:12px;font-weight:500;color:var(--gray700);}
+label.lbl span{color:var(--red);}
+input,select,textarea{
+  font-family:'DM Sans',sans-serif;font-size:13px;color:var(--gray900);
+  background:var(--white);border:1px solid var(--gray300);border-radius:6px;
+  padding:8px 10px;outline:none;transition:border-color .18s,box-shadow .18s;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(59,130,246,.12);}
+textarea{resize:vertical;min-height:72px;}
+.field-hint{font-size:11px;color:var(--gray400);}
+.input-group{display:flex;gap:0;}
+.input-group input{border-radius:6px 0 0 6px;}
+.input-group .btn{border-radius:0 6px 6px 0;border-left:none;}
+
+/* ── TABLE ──────────────────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto;border-radius:var(--r2);border:1px solid var(--gray200);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead{background:var(--gray50);}
+th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--gray500);
+  text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;
+  border-bottom:1px solid var(--gray200);}
+td{padding:11px 14px;border-bottom:1px solid var(--gray100);color:var(--gray700);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--gray50);}
+.mono{font-family:'DM Mono',monospace;font-size:12px;}
+
+/* ── BADGES ─────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;
+  font-size:11px;font-weight:600;}
+.badge-green{background:var(--green-lt);color:var(--green);}
+.badge-gold{background:var(--gold-lt);color:var(--gold);}
+.badge-red{background:var(--red-lt);color:var(--red);}
+.badge-blue{background:var(--blue-lt);color:var(--blue);}
+.badge-gray{background:var(--gray100);color:var(--gray500);}
+
+/* ── SEARCH BAR ─────────────────────────────────────────────── */
+.search-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.search-input{flex:1;min-width:200px;position:relative;}
+.search-input input{padding-left:34px;}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--gray400);font-size:15px;}
+.filter-select{min-width:150px;}
+
+/* ── MODAL ──────────────────────────────────────────────────── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;
+  align-items:center;justify-content:center;padding:20px;}
+.overlay.open{display:flex;}
+.modal{background:var(--white);border-radius:var(--r2);box-shadow:var(--shadow-lg);
+  width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;}
+.modal-lg{max-width:900px;}
+.modal-header{padding:18px 22px;border-bottom:1px solid var(--gray100);display:flex;
+  align-items:center;justify-content:space-between;}
+.modal-title{font-size:15px;font-weight:600;color:var(--navy);}
+.modal-body{padding:22px;overflow-y:auto;flex:1;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--gray100);display:flex;
+  justify-content:flex-end;gap:8px;}
+.btn-close{background:none;border:none;cursor:pointer;color:var(--gray400);font-size:20px;
+  line-height:1;padding:2px;}
+.btn-close:hover{color:var(--gray700);}
+
+/* ── TABS ───────────────────────────────────────────────────── */
+.tab-row{display:flex;border-bottom:2px solid var(--gray200);margin-bottom:20px;gap:2px;}
+.tab-btn{padding:8px 16px;font-size:13px;font-weight:500;color:var(--gray500);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .18s;}
+.tab-btn:hover{color:var(--navy);}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+/* ── PRINT PREVIEW ──────────────────────────────────────────── */
+.print-grid{display:flex;flex-wrap:wrap;gap:8px;padding:20px;background:#e5e7eb;border-radius:8px;}
+.placa-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.placa-label-small{font-size:10px;color:var(--gray500);}
+
+/* PLACA: 4.5cm x 1.5cm @ 96dpi ≈ 170px x 57px (scaled x2 for screen) */
+.placa{
+  width:340px;height:114px;
+  background:linear-gradient(135deg,#1a3a6b 0%,#0B2545 40%,#163366 100%);
+  border-radius:4px;border:2px solid #C9890A;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+.placa::before{
+  content:'';position:absolute;inset:3px;border:1px solid rgba(201,137,10,.35);border-radius:2px;
+}
+.placa-inst{color:rgba(255,255,255,.75);font-size:9px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;text-align:center;line-height:1.2;
+  padding:0 10px;margin-bottom:3px;}
+.placa-inst strong{display:block;color:#fff;font-size:10px;}
+.placa-num{font-family:'DM Mono',monospace;color:#C9890A;font-size:22px;font-weight:700;
+  letter-spacing:.05em;line-height:1;}
+.placa-sub{color:rgba(255,255,255,.5);font-size:8px;letter-spacing:.1em;margin-top:2px;}
+.placa-qr-area{position:absolute;right:10px;top:50%;transform:translateY(-50%);}
+.placa-qr-area canvas{border-radius:2px;}
+
+/* small placa para hoja impresion — 4.5cm × 1.5cm a 96dpi = 170×57px */
+.placa-print{
+  width:170px;height:57px;
+  background:linear-gradient(135deg,#0B2545 0%,#163366 60%,#1a3a6b 100%);
+  border:1.5px solid #C9890A;border-radius:3px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;overflow:hidden;
+}
+.placa-print .pi{
+  font-family:'DM Sans',sans-serif;
+  font-size:6px;font-weight:700;letter-spacing:.22em;
+  text-transform:uppercase;color:#F5C842;text-align:center;line-height:1;
+}
+.placa-print .pn{
+  font-family:'DM Mono',monospace;
+  font-size:17px;font-weight:700;letter-spacing:.06em;
+  color:#F5C842;line-height:1;
+}
+
+/* ── MISC ───────────────────────────────────────────────────── */
+.empty{text-align:center;padding:40px;color:var(--gray400);}
+.empty-ico{font-size:36px;margin-bottom:8px;}
+.divider{height:1px;background:var(--gray100);margin:16px 0;}
+.alert{padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px;}
+.alert-blue{background:var(--blue-lt);color:var(--blue);border:1px solid #bfdbfe;}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--blue-lt);
+  color:var(--blue);border-radius:4px;font-size:12px;font-weight:500;}
+
+/* ── VIEWS ──────────────────────────────────────────────────── */
+.view{display:none;}
+.view.active{display:block;}
+
+/* ── RESPONSIVE ─────────────────────────────────────────────── */
+@media(max-width:900px){
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .sidebar{width:200px;min-width:200px;}
+}
+
+/* ── PRINT STYLES ───────────────────────────────────────────── */
+@media print{
+  @page{margin:8mm;}
+  body{background:#fff;}
+  .app{display:block;}
+  .sidebar,.topbar,.btn,.search-row,.card-header,.no-print{display:none!important;}
+  .main{overflow:visible;}
+  .content{padding:0;}
+  .view{display:none!important;}
+  #view-imprimir{display:block!important;}
+  .card{border:none;box-shadow:none;padding:0;}
+  .card-body{padding:0;}
+  .alert{display:none!important;}
+  #print-sheet{
+    display:flex!important;
+    flex-wrap:wrap;
+    gap:2mm;
+    padding:0;
+    background:#fff;
+  }
+  .placa-print{
+    width:4.5cm!important;
+    height:1.5cm!important;
+    border:0.5mm solid #C9890A!important;
+    border-radius:1mm!important;
+    background:linear-gradient(135deg,#0B2545 0%,#163366 60%,#1a3a6b 100%)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:0.6mm!important;
+    break-inside:avoid;
+    page-break-inside:avoid;
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+  .placa-print .pi{
+    font-size:4.5pt!important;
+    color:#F5C842!important;
+    letter-spacing:.2em!important;
+    font-weight:700!important;
+  }
+  .placa-print .pn{
+    font-size:12pt!important;
+    font-weight:700!important;
+    color:#F5C842!important;
+    letter-spacing:.05em!important;
+  }
+}
+/* ── LOGIN SCREEN ────────────────────────────────────────────── */
+#login-screen{
+  position:fixed;inset:0;z-index:9999;
+  background:linear-gradient(135deg,#0B2545 0%,#163366 55%,#1a3a6b 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'DM Sans',sans-serif;
+}
+.login-box{
+  background:#fff;border-radius:16px;padding:40px 44px;width:100%;max-width:400px;
+  box-shadow:0 24px 60px rgba(0,0,0,.35);text-align:center;
+  animation:loginIn .4s cubic-bezier(.22,1,.36,1);
+}
+@keyframes loginIn{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:none;}}
+.login-escudo{font-size:44px;margin-bottom:4px;}
+.login-inst{font-size:11px;font-weight:700;letter-spacing:.18em;color:#C9890A;
+  text-transform:uppercase;margin-bottom:2px;}
+.login-title{font-size:20px;font-weight:700;color:#0B2545;margin-bottom:4px;}
+.login-sub{font-size:12px;color:#94A3B8;margin-bottom:28px;}
+.login-divider{height:1px;background:#E2E8F0;margin-bottom:24px;}
+.login-label{display:block;font-size:12px;font-weight:600;color:#334155;
+  text-align:left;margin-bottom:6px;}
+.login-input{
+  width:100%;padding:11px 14px;border:1.5px solid #CBD5E1;border-radius:8px;
+  font-family:'DM Sans',sans-serif;font-size:14px;color:#0F172A;outline:none;
+  transition:border-color .2s,box-shadow .2s;margin-bottom:16px;
+  letter-spacing:.1em;
+}
+.login-input:focus{border-color:#163366;box-shadow:0 0 0 3px rgba(22,51,102,.12);}
+.login-input.shake{animation:shake .35s ease;}
+@keyframes shake{0%,100%{transform:none;}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}50%{transform:translateX(6px);}}
+.login-btn{
+  width:100%;padding:12px;background:linear-gradient(135deg,#0B2545,#163366);
+  color:#F5C842;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;
+  font-size:14px;font-weight:700;letter-spacing:.08em;cursor:pointer;
+  transition:opacity .2s,transform .2s;margin-bottom:12px;
+}
+.login-btn:hover{opacity:.88;transform:translateY(-1px);}
+.login-btn:active{transform:none;}
+.login-error{color:#DC2626;font-size:12px;font-weight:500;min-height:18px;margin-bottom:4px;}
+.login-footer{font-size:11px;color:#94A3B8;margin-top:16px;}
+.login-user-info{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 10px;background:#F8FAFC;border-radius:6px;
+  margin-bottom:6px;font-size:12px;color:#475569;
+}
+.login-user-info strong{color:#0B2545;}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN SCREEN ═══════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-escudo">🏛️</div>
+    <div class="login-inst">República de Panamá</div>
+    <div class="login-title">MICI · Placas Patrimoniales</div>
+    <div class="login-sub">Ministerio de Comercio e Industrias</div>
+    <div class="login-divider"></div>
+
+    <div id="login-form-wrap">
+      <label class="login-label">Usuario</label>
+      <input class="login-input" id="login-user" type="text" placeholder="usuario" autocomplete="username">
+      <label class="login-label">Contraseña</label>
+      <input class="login-input" id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+      <div class="login-error" id="login-error"></div>
+      <button class="login-btn" onclick="doLogin()">INGRESAR AL SISTEMA</button>
+    </div>
+
+    <div class="login-footer">
+      Acceso restringido · Solo personal autorizado MICI
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP (oculto hasta login) ════════════════════════════════════════════ -->
+<div class="app" id="main-app" style="display:none;">
+
+<!-- ═══ SIDEBAR ═══════════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-badge">MICI · PANAMÁ</div>
+    <div class="logo-title">Sistema de Placas<br>Patrimoniales</div>
+    <div class="logo-sub">Ministerio de Comercio e Industrias</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">Principal</div>
+    <div class="nav-item active" data-view="dashboard" onclick="navigate(this)">
+      <span class="ico">📊</span> Dashboard
+    </div>
+    <div class="nav-item" data-view="bienes" onclick="navigate(this)">
+      <span class="ico">📋</span> Registro de Bienes
+      <span class="nav-badge" id="nb-bienes">0</span>
+    </div>
+    <div class="nav-label">Operaciones</div>
+    <div class="nav-item" data-view="placas" onclick="navigate(this)">
+      <span class="ico">🏷️</span> Generar Placas
+    </div>
+    <div class="nav-item" data-view="imprimir" onclick="navigate(this)">
+      <span class="ico">🖨️</span> Hoja de Impresión
+    </div>
+    <div class="nav-item" data-view="exportar" onclick="navigate(this)">
+      <span class="ico">📥</span> Exportar Excel
+    </div>
+    <div class="nav-label">Sistema</div>
+    <div class="nav-item" data-view="config" onclick="navigate(this)">
+      <span class="ico">⚙️</span> Configuración
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div id="sb-user" style="margin-bottom:6px;color:rgba(255,255,255,.5);font-size:11px;"></div>
+    <button onclick="doLogout()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+      color:rgba(255,255,255,.55);font-family:'DM Sans',sans-serif;font-size:11px;padding:5px 10px;
+      border-radius:5px;cursor:pointer;width:100%;transition:all .2s;"
+      onmouseover="this.style.background='rgba(255,255,255,.15)'"
+      onmouseout="this.style.background='rgba(255,255,255,.08)'">
+      ⎋ Cerrar sesión
+    </button>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══════════════════════════════════════════════════════════════ -->
+<div class="main">
+
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-sub" id="topbar-sub">Resumen general del sistema</div>
+    </div>
+    <div class="topbar-actions" id="topbar-actions"></div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="view active" id="view-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total de Bienes</div>
+          <div class="stat-val" id="st-total">0</div>
+          <div class="stat-sub">registros en sistema</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Activos</div>
+          <div class="stat-val" style="color:var(--green)" id="st-activos">0</div>
+          <div class="stat-sub"><span class="stat-dot" style="background:var(--green)"></span>en servicio</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">En Traslado</div>
+          <div class="stat-val" style="color:var(--gold)" id="st-traslado">0</div>
+          <div class="stat-sub"><span class="stat-dot" style="background:var(--gold)"></span>movimiento</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Descarte</div>
+          <div class="stat-val" style="color:var(--red)" id="st-descarte">0</div>
+          <div class="stat-sub"><span class="stat-dot" style="background:var(--red)"></span>baja</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Últimos registros</span>
+            <button class="btn btn-ghost btn-sm" onclick="navigate(document.querySelector('[data-view=bienes]'))">Ver todos</button>
+          </div>
+          <div class="card-body" style="padding:0;" id="recent-list">
+            <div class="empty"><div class="empty-ico">📭</div>Sin registros aún</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Distribución por estado</span></div>
+          <div class="card-body" id="dist-chart" style="min-height:180px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BIENES ── -->
+    <div class="view" id="view-bienes">
+      <div class="search-row">
+        <div class="search-input" style="flex:2;">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-q" placeholder="Buscar por placa, descripción, responsable..." oninput="renderBienes()">
+        </div>
+        <select class="filter-select" id="filter-estado" onchange="renderBienes()">
+          <option value="">Todos los estados</option>
+          <option>Activo</option>
+          <option>Traslado</option>
+          <option>Descarte</option>
+        </select>
+        <select class="filter-select" id="filter-regional" onchange="renderBienes()">
+          <option value="">Todas las regionales</option>
+        </select>
+        <select class="filter-select" id="filter-tipo" onchange="renderBienes()">
+          <option value="">Todos los tipos</option>
+        </select>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>N.º Placa</th>
+              <th>Descripción / Tipo</th>
+              <th>Regional / Dpto.</th>
+              <th>Responsable</th>
+              <th>Fecha Registro</th>
+              <th>Estado</th>
+              <th style="text-align:center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="bienes-tbody"></tbody>
+        </table>
+        <div class="empty" id="bienes-empty" style="display:none">
+          <div class="empty-ico">📋</div>
+          No hay bienes registrados. Haz clic en "+ Nuevo Bien" para comenzar.
+        </div>
+      </div>
+      <div style="padding:10px 14px;color:var(--gray400);font-size:12px;" id="bienes-count"></div>
+    </div>
+
+    <!-- ── PLACAS PREVIEW ── -->
+    <div class="view" id="view-placas">
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <span class="card-title">Seleccionar bienes para generar placas</span>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="selectAllPlacas()">Seleccionar todos</button>
+            <button class="btn btn-primary btn-sm" onclick="showPlacasPreview()">▶ Generar vista previa</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table style="width:100%">
+            <thead>
+              <tr>
+                <th style="width:40px;"><input type="checkbox" id="chk-all" onchange="toggleAllChk(this)"></th>
+                <th>N.º Placa</th><th>Descripción</th><th>Responsable</th><th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="placas-select-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" id="preview-section" style="display:none;">
+        <div class="card-header">
+          <span class="card-title">Vista previa de placas</span>
+          <div style="display:flex;gap:8px;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="chk-qr" onchange="showPlacasPreview()" checked> Incluir QR
+            </label>
+            <button class="btn btn-navy btn-sm" onclick="navigate(document.querySelector('[data-view=imprimir]'))">🖨️ Ir a hoja impresión</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="print-grid" id="preview-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── HOJA IMPRESION ── -->
+    <div class="view" id="view-imprimir">
+      <div class="alert alert-blue no-print">
+        💡 Esta vista está optimizada para imprimir en etiquetas adhesivas. Use <strong>Ctrl+P</strong> o el botón de imprimir. 
+        Configura la impresora en <em>sin márgenes</em> para mejor resultado.
+      </div>
+      <div class="card no-print" style="margin-bottom:16px;">
+        <div class="card-header">
+          <span class="card-title">Configuración de hoja</span>
+          <div style="display:flex;gap:8px;">
+            <label style="font-size:13px;display:flex;align-items:center;gap:6px;">
+              Desde placa #
+              <input type="number" id="print-from" min="1" value="1" style="width:80px;">
+            </label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:6px;">
+              Hasta #
+              <input type="number" id="print-to" min="1" style="width:80px;">
+            </label>
+            <button class="btn btn-ghost btn-sm" onclick="buildPrintSheet()">↻ Actualizar</button>
+            <button class="btn btn-navy btn-sm" onclick="window.print()">🖨️ Imprimir</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div id="print-sheet" class="print-sheet" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EXPORTAR ── -->
+    <div class="view" id="view-exportar">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Exportar base de datos</span></div>
+          <div class="card-body">
+            <div class="fg" style="margin-bottom:16px;">
+              <label class="lbl">Filtrar por estado</label>
+              <select id="exp-estado">
+                <option value="">Todos</option>
+                <option>Activo</option>
+                <option>Traslado</option>
+                <option>Descarte</option>
+              </select>
+            </div>
+            <div class="fg" style="margin-bottom:16px;">
+              <label class="lbl">Filtrar por regional</label>
+              <select id="exp-regional"><option value="">Todas</option></select>
+            </div>
+            <div class="fg" style="margin-bottom:20px;">
+              <label class="lbl">Rango de fechas</label>
+              <div style="display:flex;gap:8px;">
+                <input type="date" id="exp-desde">
+                <input type="date" id="exp-hasta">
+              </div>
+            </div>
+            <button class="btn btn-green" onclick="exportExcel()" style="width:100%;">
+              📊 Exportar a Excel (.xlsx)
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Vista previa de exportación</span></div>
+          <div class="card-body" style="padding:0;">
+            <div id="exp-preview" style="overflow-x:auto;max-height:320px;font-size:12px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CONFIG ── -->
+    <div class="view" id="view-config">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Configuración de numeración</span></div>
+          <div class="card-body">
+            <div class="fg" style="margin-bottom:14px;">
+              <label class="lbl">Prefijo de placa</label>
+              <input type="text" id="cfg-prefijo" value="MICI" maxlength="6">
+              <div class="field-hint">Ej: MICI → Placa MICI-0001</div>
+            </div>
+            <div class="fg" style="margin-bottom:14px;">
+              <label class="lbl">Siguiente número de secuencia</label>
+              <input type="number" id="cfg-seq" min="1" value="1">
+            </div>
+            <div class="fg" style="margin-bottom:14px;">
+              <label class="lbl">Dígitos en el número</label>
+              <select id="cfg-digits">
+                <option value="4" selected>4 dígitos (0001)</option>
+                <option value="5">5 dígitos (00001)</option>
+                <option value="6">6 dígitos (000001)</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="saveConfig()">Guardar configuración</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Generar serie de placas</span></div>
+          <div class="card-body">
+            <div class="alert alert-blue" style="margin-bottom:16px;">
+              Genera una serie de números de placa consecutivos. Los bienes se crearán sin descripción para asignar después.
+            </div>
+            <div class="fg" style="margin-bottom:14px;">
+              <label class="lbl">Cantidad a generar</label>
+              <input type="number" id="gen-cant" min="1" max="500" value="10">
+            </div>
+            <div class="fg" style="margin-bottom:14px;">
+              <label class="lbl">Estado inicial</label>
+              <select id="gen-estado">
+                <option>Activo</option><option>Traslado</option>
+              </select>
+            </div>
+            <div class="fg" style="margin-bottom:16px;">
+              <label class="lbl">Regional</label>
+              <input type="text" id="gen-regional" placeholder="Sede Central">
+            </div>
+            <button class="btn btn-gold" onclick="generarSerie()">⚡ Generar serie</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /main-app -->
+
+<!-- ═══ MODAL: NUEVO / EDITAR BIEN ══════════════════════════════════════════ -->
+<div class="overlay" id="modal-bien">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-bien-title">Nuevo Bien Patrimonial</span>
+      <button class="btn-close" onclick="closeModal('modal-bien')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg">
+          <label class="lbl">N.º de Placa <span>*</span></label>
+          <div class="input-group">
+            <input type="text" id="b-placa" placeholder="MICI-0001" class="mono">
+            <button class="btn btn-ghost" onclick="autoPlaca()" title="Auto-generar">↻</button>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="lbl">Tipo de Bien <span>*</span></label>
+          <select id="b-tipo">
+            <option>Mobiliario de Oficina</option>
+            <option>Equipo de Cómputo</option>
+            <option>Equipo de Comunicaciones</option>
+            <option>Vehículo</option>
+            <option>Equipo Médico</option>
+            <option>Maquinaria</option>
+            <option>Arte y Decoración</option>
+            <option>Equipo Eléctrico</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div class="fg full">
+          <label class="lbl">Descripción del Bien <span>*</span></label>
+          <textarea id="b-desc" placeholder="Descripción detallada del bien patrimonial..."></textarea>
+        </div>
+        <div class="fg">
+          <label class="lbl">Regional / Sede</label>
+          <input type="text" id="b-regional" placeholder="Sede Central, Regional Chiriquí...">
+        </div>
+        <div class="fg">
+          <label class="lbl">Departamento / Oficina</label>
+          <input type="text" id="b-depto" placeholder="DIGERPI, Recursos Humanos...">
+        </div>
+        <div class="fg">
+          <label class="lbl">Responsable / Custodio <span>*</span></label>
+          <input type="text" id="b-responsable" placeholder="Nombre completo">
+        </div>
+        <div class="fg">
+          <label class="lbl">Cédula del responsable</label>
+          <input type="text" id="b-cedula" placeholder="8-123-4567">
+        </div>
+        <div class="fg">
+          <label class="lbl">Fecha de registro</label>
+          <input type="date" id="b-fecha">
+        </div>
+        <div class="fg">
+          <label class="lbl">Estado <span>*</span></label>
+          <select id="b-estado">
+            <option>Activo</option>
+            <option>Traslado</option>
+            <option>Descarte</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label class="lbl">Valor estimado (USD)</label>
+          <input type="number" id="b-valor" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="fg full">
+          <label class="lbl">Observaciones</label>
+          <input type="text" id="b-obs" placeholder="Notas adicionales...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-bien')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveBien()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: DETALLE PLACA ════════════════════════════════════════════════ -->
+<div class="overlay" id="modal-placa">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title">Detalle de Placa Patrimonial</span>
+      <button class="btn-close" onclick="closeModal('modal-placa')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-placa-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-placa')">Cerrar</button>
+      <button class="btn btn-navy" onclick="imprimirPlacaModal()">🖨️ Imprimir esta placa</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  DATA LAYER  (localStorage)
+// ═══════════════════════════════════════════════════════════════════════════
+function loadDB(){ try{return JSON.parse(localStorage.getItem('mici_db')||'[]');}catch{return[];} }
+function saveDB(d){ localStorage.setItem('mici_db',JSON.stringify(d)); }
+function loadCfg(){ try{return JSON.parse(localStorage.getItem('mici_cfg')||'{}');}catch{return{};} }
+function saveCfg(c){ localStorage.setItem('mici_cfg',JSON.stringify(c)); }
+
+function getCfg(){
+  const c=loadCfg();
+  return {prefijo:c.prefijo||'MICI', seq:c.seq||1, digits:parseInt(c.digits||'4')};
+}
+
+function nextNumPlaca(){
+  const c=getCfg();
+  return c.prefijo+'-'+String(c.seq).padStart(c.digits,'0');
+}
+function bumpSeq(){
+  const raw=loadCfg(), c=getCfg();
+  raw.seq=(c.seq||1)+1;
+  saveCfg(raw);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+const VIEW_META={
+  dashboard:{title:'Dashboard',sub:'Resumen general del sistema',actions:''},
+  bienes:{title:'Registro de Bienes',sub:'Gestión del inventario patrimonial',
+    actions:'<button class="btn btn-primary" onclick="openNuevoBien()">＋ Nuevo Bien</button>'},
+  placas:{title:'Generar Placas',sub:'Vista previa y selección para impresión',actions:''},
+  imprimir:{title:'Hoja de Impresión',sub:'Hoja optimizada para etiquetas adhesivas 4.5×1.5 cm',actions:''},
+  exportar:{title:'Exportar Excel',sub:'Exportar inventario a hoja de cálculo',actions:''},
+  config:{title:'Configuración',sub:'Parámetros del sistema de numeración',actions:''},
+};
+
+function navigate(el){
+  const v=el.dataset.view;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  const m=VIEW_META[v]||{};
+  document.getElementById('topbar-title').textContent=m.title||v;
+  document.getElementById('topbar-sub').textContent=m.sub||'';
+  document.getElementById('topbar-actions').innerHTML=m.actions||'';
+  if(v==='dashboard')refreshDashboard();
+  if(v==='bienes'){renderBienes();populateFilters();}
+  if(v==='placas')renderPlacasSelect();
+  if(v==='imprimir')buildPrintSheet();
+  if(v==='exportar'){populateExpFilters();renderExpPreview();}
+  if(v==='config'){const c=getCfg();document.getElementById('cfg-prefijo').value=c.prefijo;document.getElementById('cfg-seq').value=c.seq;document.getElementById('cfg-digits').value=c.digits;}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════
+function refreshDashboard(){
+  const db=loadDB();
+  const activos=db.filter(r=>r.estado==='Activo').length;
+  const traslado=db.filter(r=>r.estado==='Traslado').length;
+  const descarte=db.filter(r=>r.estado==='Descarte').length;
+  document.getElementById('st-total').textContent=db.length;
+  document.getElementById('st-activos').textContent=activos;
+  document.getElementById('st-traslado').textContent=traslado;
+  document.getElementById('st-descarte').textContent=descarte;
+  document.getElementById('nb-bienes').textContent=db.length;
+
+  // Recent list
+  const rl=document.getElementById('recent-list');
+  const recent=db.slice(-6).reverse();
+  if(!recent.length){rl.innerHTML='<div class="empty"><div class="empty-ico">📭</div>Sin registros</div>';return;}
+  rl.innerHTML='<table style="width:100%"><tbody>'+recent.map(r=>`
+    <tr>
+      <td class="mono" style="padding:10px 14px;color:var(--blue);font-size:12px;">${r.placa}</td>
+      <td style="padding:10px 14px;font-size:13px;">${r.descripcion.substring(0,40)||'—'}</td>
+      <td style="padding:10px 14px;">${estadoBadge(r.estado)}</td>
+    </tr>`).join('')+'</tbody></table>';
+
+  // Dist chart
+  const dc=document.getElementById('dist-chart');
+  const total=db.length||1;
+  dc.innerHTML=`
+    <div style="padding:8px 0;">
+      ${bar('Activo',activos,total,'var(--green)')}
+      ${bar('Traslado',traslado,total,'var(--gold)')}
+      ${bar('Descarte',descarte,total,'var(--red)')}
+    </div>
+    <div style="margin-top:16px;font-size:12px;color:var(--gray400);">Total: ${db.length} bienes registrados</div>`;
+}
+
+function bar(label,val,total,color){
+  const pct=total?Math.round(val/total*100):0;
+  return `<div style="margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px;">
+      <span style="color:var(--gray700)">${label}</span>
+      <span style="font-weight:600;color:${color}">${val} <span style="color:var(--gray400);font-weight:400">(${pct}%)</span></span>
+    </div>
+    <div style="background:var(--gray100);border-radius:4px;height:8px;">
+      <div style="width:${pct}%;background:${color};border-radius:4px;height:8px;transition:width .4s;"></div>
+    </div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  BIENES CRUD
+// ═══════════════════════════════════════════════════════════════════════════
+let editingId=null;
+
+function openNuevoBien(){
+  editingId=null;
+  document.getElementById('modal-bien-title').textContent='Nuevo Bien Patrimonial';
+  clearForm();
+  document.getElementById('b-fecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('b-placa').value=nextNumPlaca();
+  openModal('modal-bien');
+}
+
+function clearForm(){
+  ['b-placa','b-desc','b-regional','b-depto','b-responsable','b-cedula','b-valor','b-obs']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('b-tipo').value='Mobiliario de Oficina';
+  document.getElementById('b-estado').value='Activo';
+  document.getElementById('b-fecha').value='';
+}
+
+function autoPlaca(){ document.getElementById('b-placa').value=nextNumPlaca(); }
+
+function saveBien(){
+  const placa=document.getElementById('b-placa').value.trim();
+  const desc=document.getElementById('b-desc').value.trim();
+  const responsable=document.getElementById('b-responsable').value.trim();
+  if(!placa){alert('El número de placa es requerido.');return;}
+  if(!desc){alert('La descripción es requerida.');return;}
+  if(!responsable){alert('El responsable es requerido.');return;}
+
+  const db=loadDB();
+  if(!editingId){
+    // Check duplicate
+    if(db.find(r=>r.placa===placa)){alert('Ya existe un bien con ese número de placa.');return;}
+  }
+
+  const rec={
+    id:editingId||Date.now(),
+    placa, desc, responsable,
+    tipo:document.getElementById('b-tipo').value,
+    descripcion:desc,
+    regional:document.getElementById('b-regional').value.trim(),
+    depto:document.getElementById('b-depto').value.trim(),
+    cedula:document.getElementById('b-cedula').value.trim(),
+    fecha:document.getElementById('b-fecha').value||new Date().toISOString().split('T')[0],
+    estado:document.getElementById('b-estado').value,
+    valor:parseFloat(document.getElementById('b-valor').value)||0,
+    obs:document.getElementById('b-obs').value.trim(),
+  };
+
+  if(editingId){
+    const idx=db.findIndex(r=>r.id===editingId);
+    if(idx>=0) db[idx]=rec;
+  } else {
+    db.push(rec);
+    bumpSeq();
+  }
+  saveDB(db);
+  closeModal('modal-bien');
+  renderBienes();
+  refreshDashboard();
+  populateFilters();
+  toast('Bien guardado correctamente ✓');
+}
+
+function editBien(id){
+  editingId=id;
+  const db=loadDB();
+  const r=db.find(x=>x.id===id);
+  if(!r)return;
+  document.getElementById('modal-bien-title').textContent='Editar Bien Patrimonial';
+  document.getElementById('b-placa').value=r.placa;
+  document.getElementById('b-tipo').value=r.tipo||'Mobiliario de Oficina';
+  document.getElementById('b-desc').value=r.descripcion||r.desc||'';
+  document.getElementById('b-regional').value=r.regional||'';
+  document.getElementById('b-depto').value=r.depto||'';
+  document.getElementById('b-responsable').value=r.responsable||'';
+  document.getElementById('b-cedula').value=r.cedula||'';
+  document.getElementById('b-fecha').value=r.fecha||'';
+  document.getElementById('b-estado').value=r.estado||'Activo';
+  document.getElementById('b-valor').value=r.valor||'';
+  document.getElementById('b-obs').value=r.obs||'';
+  openModal('modal-bien');
+}
+
+function deleteBien(id){
+  if(!confirm('¿Eliminar este registro permanentemente?'))return;
+  const db=loadDB().filter(r=>r.id!==id);
+  saveDB(db);
+  renderBienes();
+  refreshDashboard();
+  toast('Registro eliminado');
+}
+
+function verPlaca(id){
+  const db=loadDB();
+  const r=db.find(x=>x.id===id);
+  if(!r)return;
+  const body=document.getElementById('modal-placa-body');
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+      <div>
+        <div class="tab-row"><div class="tab-btn active">Información</div></div>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          ${row2('N.º Placa',`<span class="mono" style="color:var(--blue);font-size:14px;">${r.placa}</span>`)}
+          ${row2('Tipo',r.tipo||'—')}
+          ${row2('Descripción',r.descripcion||r.desc||'—')}
+          ${row2('Regional',r.regional||'—')}
+          ${row2('Departamento',r.depto||'—')}
+          ${row2('Responsable',r.responsable||'—')}
+          ${row2('Cédula',r.cedula||'—')}
+          ${row2('Fecha registro',formatDate(r.fecha))}
+          ${row2('Estado',estadoBadge(r.estado))}
+          ${row2('Valor',r.valor?'$'+r.valor.toFixed(2):'—')}
+          ${row2('Observaciones',r.obs||'—')}
+        </table>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+        <div style="font-size:12px;color:var(--gray500);font-weight:600;">PLACA GENERADA (escala 2×)</div>
+        <div id="modal-placa-view"></div>
+        <div id="modal-placa-qr" style="display:flex;justify-content:center;"></div>
+        <div style="font-size:11px;color:var(--gray400);text-align:center;">
+          Tamaño real: 4.5 × 1.5 cm<br>Optimizada para etiqueta adhesiva
+        </div>
+      </div>
+    </div>`;
+  openModal('modal-placa');
+  setTimeout(()=>{
+    renderPlacaEl(document.getElementById('modal-placa-view'),r,true);
+    const qrDiv=document.getElementById('modal-placa-qr');
+    makeQR(qrDiv,r.placa,60);
+  },50);
+  window._modalPlacaId=id;
+}
+
+function row2(k,v){return`<tr><td style="padding:7px 0;color:var(--gray500);font-weight:500;vertical-align:top;width:130px;border-bottom:1px solid var(--gray100);">${k}</td><td style="padding:7px 0 7px 10px;border-bottom:1px solid var(--gray100);">${v}</td></tr>`;}
+
+function imprimirPlacaModal(){
+  const id=window._modalPlacaId;
+  const db=loadDB();
+  const r=db.find(x=>x.id===id);
+  if(!r)return;
+  const w=window.open('','_blank');
+  w.document.write(printOneHTML(r));
+  w.document.close();
+  w.onload=()=>w.print();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  RENDER TABLE
+// ═══════════════════════════════════════════════════════════════════════════
+function renderBienes(){
+  const q=(document.getElementById('search-q').value||'').toLowerCase();
+  const fe=document.getElementById('filter-estado').value;
+  const fr=document.getElementById('filter-regional').value;
+  const ft=document.getElementById('filter-tipo').value;
+  let db=loadDB();
+  if(q) db=db.filter(r=>[r.placa,r.descripcion,r.responsable,r.regional,r.tipo].join(' ').toLowerCase().includes(q));
+  if(fe) db=db.filter(r=>r.estado===fe);
+  if(fr) db=db.filter(r=>r.regional===fr);
+  if(ft) db=db.filter(r=>r.tipo===ft);
+  const tbody=document.getElementById('bienes-tbody');
+  const empty=document.getElementById('bienes-empty');
+  document.getElementById('bienes-count').textContent=`Mostrando ${db.length} registro(s)`;
+  if(!db.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  tbody.innerHTML=db.map(r=>`
+    <tr>
+      <td><span class="mono" style="color:var(--blue);font-weight:600;">${r.placa}</span></td>
+      <td>
+        <div style="font-weight:500;">${(r.descripcion||r.desc||'').substring(0,45)}</div>
+        <div style="font-size:11px;color:var(--gray400);">${r.tipo||''}</div>
+      </td>
+      <td>
+        <div>${r.regional||'—'}</div>
+        <div style="font-size:11px;color:var(--gray400);">${r.depto||''}</div>
+      </td>
+      <td>${r.responsable||'—'}</td>
+      <td>${formatDate(r.fecha)}</td>
+      <td>${estadoBadge(r.estado)}</td>
+      <td style="text-align:center;">
+        <button class="btn btn-ghost btn-xs" onclick="verPlaca(${r.id})" title="Ver placa">👁</button>
+        <button class="btn btn-ghost btn-xs" onclick="editBien(${r.id})" title="Editar" style="margin:0 2px;">✎</button>
+        <button class="btn btn-red btn-xs" onclick="deleteBien(${r.id})" title="Eliminar">✕</button>
+      </td>
+    </tr>`).join('');
+}
+
+function populateFilters(){
+  const db=loadDB();
+  const regionales=[...new Set(db.map(r=>r.regional).filter(Boolean))].sort();
+  const tipos=[...new Set(db.map(r=>r.tipo).filter(Boolean))].sort();
+  ['filter-regional','exp-regional'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    const cur=el.value;
+    el.innerHTML='<option value="">Todas las regionales</option>'+regionales.map(r=>`<option>${r}</option>`).join('');
+    el.value=cur;
+  });
+  const ft=document.getElementById('filter-tipo');
+  if(ft){ft.innerHTML='<option value="">Todos los tipos</option>'+tipos.map(t=>`<option>${t}</option>`).join('');}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PLACAS PREVIEW
+// ═══════════════════════════════════════════════════════════════════════════
+function renderPlacasSelect(){
+  const db=loadDB();
+  const tbody=document.getElementById('placas-select-tbody');
+  if(!db.length){tbody.innerHTML='<tr><td colspan="5" class="empty"><div class="empty-ico">📋</div>Sin bienes</td></tr>';return;}
+  tbody.innerHTML=db.map(r=>`
+    <tr>
+      <td style="padding:8px 14px;"><input type="checkbox" class="placa-chk" data-id="${r.id}" checked></td>
+      <td class="mono" style="color:var(--blue);">${r.placa}</td>
+      <td>${(r.descripcion||r.desc||'').substring(0,50)}</td>
+      <td>${r.responsable||'—'}</td>
+      <td>${estadoBadge(r.estado)}</td>
+    </tr>`).join('');
+}
+
+function toggleAllChk(master){
+  document.querySelectorAll('.placa-chk').forEach(c=>c.checked=master.checked);
+}
+function selectAllPlacas(){
+  document.querySelectorAll('.placa-chk').forEach(c=>c.checked=true);
+  document.getElementById('chk-all').checked=true;
+}
+
+function showPlacasPreview(){
+  const ids=Array.from(document.querySelectorAll('.placa-chk:checked')).map(c=>parseInt(c.dataset.id));
+  if(!ids.length){alert('Selecciona al menos un bien.');return;}
+  const db=loadDB();
+  const selected=db.filter(r=>ids.includes(r.id));
+  const grid=document.getElementById('preview-grid');
+  const withQR=document.getElementById('chk-qr').checked;
+  grid.innerHTML='';
+  selected.forEach(r=>{
+    const wrap=document.createElement('div');
+    wrap.className='placa-wrap';
+    const lbl=document.createElement('div');
+    lbl.className='placa-label-small';
+    lbl.textContent=r.placa;
+    const placaDiv=document.createElement('div');
+    renderPlacaEl(placaDiv,r,false);
+    wrap.appendChild(placaDiv);
+    if(withQR){
+      const qDiv=document.createElement('div');
+      makeQR(qDiv,r.placa,40);
+      wrap.appendChild(qDiv);
+    }
+    wrap.appendChild(lbl);
+    grid.appendChild(wrap);
+  });
+  document.getElementById('preview-section').style.display='';
+}
+
+function renderPlacaEl(container, r, large){
+  const scale=large?2:1;
+  const el=document.createElement('div');
+  el.className=large?'placa':'placa-print';
+  if(large){
+    el.innerHTML=`
+      <div class="placa-inst">Ministerio de Comercio e Industrias<strong>REPÚBLICA DE PANAMÁ</strong></div>
+      <div class="placa-num">${r.placa}</div>
+      <div class="placa-sub">BIEN PATRIMONIAL</div>`;
+  } else {
+    el.innerHTML=`
+      <div class="pi">Ministerio de Comercio e Industrias<strong>MICI · PANAMÁ</strong></div>
+      <div class="pn">${r.placa}</div>
+      <div class="ps">BIEN PATRIMONIAL</div>`;
+  }
+  container.innerHTML='';
+  container.appendChild(el);
+}
+
+function makeQR(container, text, size){
+  container.innerHTML='';
+  try{
+    new QRCode(container,{text,width:size,height:size,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PRINT SHEET
+// ═══════════════════════════════════════════════════════════════════════════
+function buildPrintSheet(){
+  const db=loadDB();
+  if(!db.length){
+    document.getElementById('print-sheet').innerHTML='<div class="empty" style="width:100%;"><div class="empty-ico">🖨️</div>Sin bienes para imprimir</div>';
+    return;
+  }
+  const from=parseInt(document.getElementById('print-from').value)||1;
+  const toEl=document.getElementById('print-to');
+  if(!toEl.value) toEl.value=db.length;
+  const to=parseInt(toEl.value)||db.length;
+  const slice=db.slice(from-1,to);
+  const sheet=document.getElementById('print-sheet');
+  sheet.innerHTML='';
+  slice.forEach(r=>{
+    const placa=document.createElement('div');
+    placa.className='placa-print';
+    placa.innerHTML=`<div class="pi">MICI</div><div class="pn">${r.placa}</div>`;
+    sheet.appendChild(placa);
+  });
+}
+
+function printOneHTML(r){
+  return`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@700&family=DM+Mono:wght@700&display=swap');
+  @page{margin:0;size:4.5cm 1.5cm;}
+  html,body{margin:0;padding:0;width:4.5cm;height:1.5cm;background:#fff;}
+  .placa{
+    width:4.5cm;height:1.5cm;
+    border:0.5mm solid #C9890A;border-radius:1mm;
+    background:linear-gradient(135deg,#0B2545 0%,#163366 60%,#1a3a6b 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:0.6mm;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .pi{font-family:'DM Sans',sans-serif;font-size:4.5pt;font-weight:700;
+    letter-spacing:.22em;color:#F5C842;text-transform:uppercase;}
+  .pn{font-family:'DM Mono',monospace;font-size:12pt;font-weight:700;
+    letter-spacing:.05em;color:#F5C842;}
+  </style></head><body>
+  <div class="placa">
+    <div class="pi">MICI</div>
+    <div class="pn">${r.placa}</div>
+  </div>
+  <script>window.onload=()=>window.print();<\/script></body></html>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  EXPORT EXCEL
+// ═══════════════════════════════════════════════════════════════════════════
+function getFilteredForExport(){
+  let db=loadDB();
+  const est=document.getElementById('exp-estado').value;
+  const reg=document.getElementById('exp-regional').value;
+  const desde=document.getElementById('exp-desde').value;
+  const hasta=document.getElementById('exp-hasta').value;
+  if(est) db=db.filter(r=>r.estado===est);
+  if(reg) db=db.filter(r=>r.regional===reg);
+  if(desde) db=db.filter(r=>r.fecha>=desde);
+  if(hasta) db=db.filter(r=>r.fecha<=hasta);
+  return db;
+}
+
+function populateExpFilters(){ populateFilters(); }
+
+function renderExpPreview(){
+  const db=getFilteredForExport().slice(0,8);
+  const el=document.getElementById('exp-preview');
+  if(!db.length){el.innerHTML='<div class="empty">Sin datos para exportar</div>';return;}
+  el.innerHTML=`<table style="width:100%;font-size:11px;border-collapse:collapse;">
+    <thead style="background:var(--gray50);">
+      <tr>${['N.º Placa','Descripción','Tipo','Regional','Responsable','Estado','Fecha'].map(h=>`<th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--gray200);white-space:nowrap;">${h}</th>`).join('')}</tr>
+    </thead>
+    <tbody>${db.map(r=>`<tr>${[r.placa,(r.descripcion||r.desc||'').substring(0,30),r.tipo||'—',r.regional||'—',r.responsable||'—',r.estado,r.fecha||'—'].map(v=>`<td style="padding:7px 10px;border-bottom:1px solid var(--gray100);">${v}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function exportExcel(){
+  const db=getFilteredForExport();
+  if(!db.length){alert('No hay datos para exportar con los filtros seleccionados.');return;}
+  const rows=db.map(r=>({
+    'N.º Placa':r.placa,
+    'Descripción':r.descripcion||r.desc||'',
+    'Tipo de Bien':r.tipo||'',
+    'Regional / Sede':r.regional||'',
+    'Departamento / Oficina':r.depto||'',
+    'Responsable / Custodio':r.responsable||'',
+    'Cédula':r.cedula||'',
+    'Fecha de Registro':r.fecha||'',
+    'Estado':r.estado||'',
+    'Valor Estimado (USD)':r.valor||0,
+    'Observaciones':r.obs||'',
+  }));
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:14},{wch:40},{wch:22},{wch:24},{wch:24},{wch:28},{wch:14},{wch:16},{wch:12},{wch:20},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,ws,'Inventario Patrimonial');
+  // Summary sheet
+  const summary=[
+    ['MINISTERIO DE COMERCIO E INDUSTRIAS – INVENTARIO PATRIMONIAL'],
+    ['Fecha de exportación:',new Date().toLocaleDateString('es-PA')],
+    ['Total de bienes:',db.length],
+    ['Activos:',db.filter(r=>r.estado==='Activo').length],
+    ['En traslado:',db.filter(r=>r.estado==='Traslado').length],
+    ['Descarte:',db.filter(r=>r.estado==='Descarte').length],
+  ];
+  const ws2=XLSX.utils.aoa_to_sheet(summary);
+  XLSX.utils.book_append_sheet(wb,ws2,'Resumen');
+  const fecha=new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb,`MICI-Inventario-Patrimonial-${fecha}.xlsx`);
+  toast(`Excel exportado con ${db.length} registro(s) ✓`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════════════════════
+function saveConfig(){
+  const raw=loadCfg();
+  raw.prefijo=document.getElementById('cfg-prefijo').value.trim()||'MICI';
+  raw.seq=parseInt(document.getElementById('cfg-seq').value)||1;
+  raw.digits=document.getElementById('cfg-digits').value;
+  saveCfg(raw);
+  toast('Configuración guardada ✓');
+}
+
+function generarSerie(){
+  const cant=parseInt(document.getElementById('gen-cant').value)||0;
+  if(!cant||cant<1){alert('Ingresa una cantidad válida.');return;}
+  if(!confirm(`¿Generar ${cant} placas consecutivas? Esto creará ${cant} registros nuevos.`))return;
+  const db=loadDB();
+  const estado=document.getElementById('gen-estado').value;
+  const regional=document.getElementById('gen-regional').value.trim();
+  const hoy=new Date().toISOString().split('T')[0];
+  for(let i=0;i<cant;i++){
+    db.push({
+      id:Date.now()+i,
+      placa:nextNumPlaca(),
+      desc:'(pendiente asignación)',
+      descripcion:'(pendiente asignación)',
+      tipo:'Otro',
+      regional:regional||'',
+      depto:'',responsable:'',cedula:'',
+      fecha:hoy,estado,valor:0,obs:'Serie generada automáticamente'
+    });
+    bumpSeq();
+  }
+  saveDB(db);
+  toast(`${cant} placas generadas correctamente ✓`);
+  refreshDashboard();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════════════════════════
+function estadoBadge(e){
+  if(e==='Activo') return'<span class="badge badge-green">● Activo</span>';
+  if(e==='Traslado') return'<span class="badge badge-gold">⇄ Traslado</span>';
+  if(e==='Descarte') return'<span class="badge badge-red">✕ Descarte</span>';
+  return`<span class="badge badge-gray">${e||'—'}</span>`;
+}
+
+function formatDate(d){
+  if(!d)return'—';
+  try{return new Date(d+'T12:00:00').toLocaleDateString('es-PA',{day:'2-digit',month:'short',year:'numeric'});}
+  catch{return d;}
+}
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+let _toastTimer;
+function toast(msg){
+  let t=document.getElementById('_toast');
+  if(!t){t=document.createElement('div');t.id='_toast';
+    t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);z-index:9999;transition:opacity .3s;';
+    document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>t.style.opacity='0',2800);
+}
+
+// Close overlay on background click
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// Live export preview update
+['exp-estado','exp-regional','exp-desde','exp-hasta'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('change',renderExpPreview);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════════════════════════════
+// Usuarios: {usuario, contraseña, nombre}
+const USERS = [
+  {user:'admin',    pass:'mici2025',  nombre:'Administrador'},
+  {user:'patrimonial', pass:'placas123', nombre:'Patrimonio MICI'},
+];
+
+function doLogin(){
+  const u=document.getElementById('login-user').value.trim().toLowerCase();
+  const p=document.getElementById('login-pass').value;
+  const found=USERS.find(x=>x.user===u && x.pass===p);
+  if(!found){
+    const err=document.getElementById('login-error');
+    err.textContent='Usuario o contraseña incorrectos.';
+    const inp=document.getElementById('login-pass');
+    inp.value='';
+    inp.classList.remove('shake');
+    void inp.offsetWidth; // reflow para reiniciar animación
+    inp.classList.add('shake');
+    inp.focus();
+    return;
+  }
+  // Guardar sesión
+  sessionStorage.setItem('mici_auth', JSON.stringify({user:found.user, nombre:found.nombre, ts:Date.now()}));
+  showApp(found.nombre);
+}
+
+function doLogout(){
+  if(!confirm('¿Cerrar sesión?'))return;
+  sessionStorage.removeItem('mici_auth');
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-pass').value='';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-error').textContent='';
+  document.getElementById('login-user').focus();
+}
+
+function showApp(nombre){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-app').style.display='flex';
+  document.getElementById('sb-user').textContent='👤 ' + nombre;
+  refreshDashboard();
+  document.getElementById('print-to').value=loadDB().length||1;
+}
+
+// ── INIT: verificar sesión existente ──
+(function(){
+  const sess=sessionStorage.getItem('mici_auth');
+  if(sess){
+    try{
+      const d=JSON.parse(sess);
+      showApp(d.nombre);
+    }catch{ /* sesión inválida, mostrar login */ }
+  } else {
+    document.getElementById('login-user').focus();
+  }
+})();
+</script>
+</body>
+</html>
